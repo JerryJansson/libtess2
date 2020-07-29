@@ -235,6 +235,8 @@ static int IsWindingInside( TESStesselator *tess, int n )
 			return (n < 0);
 		case TESS_WINDING_ABS_GEQ_TWO:
 			return (n >= 2) || (n <= -2);
+		case TESS_WINDING_GEQ_TWO:			// Jerry
+			return (n >= 2);
 	}
 	/*LINTED*/
 	assert( FALSE );

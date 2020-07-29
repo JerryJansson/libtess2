@@ -45,6 +45,7 @@ enum TessWindingRule
 	TESS_WINDING_POSITIVE,
 	TESS_WINDING_NEGATIVE,
 	TESS_WINDING_ABS_GEQ_TWO,
+	TESS_WINDING_GEQ_TWO		// Jerry
 };
 
 // The contents of the tessGetElements() depends on element type being passed to tessTesselate().
