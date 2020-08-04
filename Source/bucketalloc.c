@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "../Include/tesselator.h"
 
 //#define CHECK_BOUNDS
@@ -53,21 +54,19 @@ struct BucketAlloc
 	TESSalloc* alloc;
 };
 
-static int CreateBucket( struct BucketAlloc* ba )
+static void CreateBucket( struct BucketAlloc* ba )
 {
-	size_t size;
 	Bucket* bucket;
 	void* freelist;
 	unsigned char* head;
 	unsigned char* it;
 
 	// Allocate memory for the bucket
-	size = sizeof(Bucket) + ba->itemSize * ba->bucketSize;
+	int size = sizeof(Bucket) + ba->itemSize * ba->bucketSize;
 	bucket = (Bucket*)ba->alloc->memalloc( ba->alloc->userData, size );
-	if ( !bucket )
-		return 0;
-	bucket->next = 0;
 
+	assert(bucket);
+	
 	// Add the bucket into the list of buckets.
 	bucket->next = ba->buckets;
 	ba->buckets = bucket;
@@ -87,8 +86,6 @@ static int CreateBucket( struct BucketAlloc* ba )
 	while ( it != head );
 	// Update pointer to next location containing a free item.
 	ba->freelist = (void*)it;
-
-	return 1;
 }
 
 static void *NextFreeItem( struct BucketAlloc *ba )
@@ -110,12 +107,8 @@ struct BucketAlloc* createBucketAlloc( TESSalloc* alloc, const char* name,
 	ba->freelist = 0;
 	ba->buckets = 0;
 
-	if ( !CreateBucket( ba ) )
-	{
-		alloc->memfree( alloc->userData, ba );
-		return 0;
-	}
-
+	CreateBucket(ba);
+	
 	return ba;
 }
 
@@ -126,8 +119,7 @@ void* bucketAlloc( struct BucketAlloc *ba )
 	// If running out of memory, allocate new bucket and update the freelist.
 	if ( !ba->freelist || !NextFreeItem( ba ) )
 	{
-		if ( !CreateBucket( ba ) )
-			return 0;
+		CreateBucket(ba);
 	}
 
 	// Pop item from in front of the free list.
