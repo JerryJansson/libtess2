@@ -808,19 +808,13 @@ void OutputPolymesh( TESStesselator *tess, TESSmesh *mesh, int elementType, int 
 
 void OutputContours( TESStesselator *tess, TESSmesh *mesh, int vertexSize )
 {
-	TESSface *f = 0;
-	TESShalfEdge *edge = 0;
-	TESShalfEdge *start = 0;
-	TESSreal *verts = 0;
-	TESSindex *elements = 0;
-	TESSindex *vertInds = 0;
-	int startVert = 0;
-	int vertCount = 0;
-
+	TESShalfEdge *edge = NULL;
+	TESShalfEdge *start = NULL;
+	 
 	tess->vertexCount = 0;
 	tess->elementCount = 0;
 
-	for ( f = mesh->fHead.next; f != &mesh->fHead; f = f->next )
+	for (TESSface* f = mesh->fHead.next; f != &mesh->fHead; f = f->next )
 	{
 		if ( !f->inside ) continue;
 
@@ -839,13 +833,14 @@ void OutputContours( TESStesselator *tess, TESSmesh *mesh, int vertexSize )
 	tess->vertices = (TESSreal*)tess->alloc.memalloc( tess->alloc.userData, sizeof(TESSreal) * tess->vertexCount * vertexSize );
 	tess->vertexIndices = (TESSindex*)tess->alloc.memalloc( tess->alloc.userData, sizeof(TESSindex) * tess->vertexCount );
 	
-	verts = tess->vertices;
-	elements = tess->elements;
-	vertInds = tess->vertexIndices;
+	TESSreal* verts = tess->vertices;
+	TESSindex* elements = tess->elements;
+	TESSindex* vertInds = tess->vertexIndices;
 
-	startVert = 0;
+	int startVert = 0;
+	int vertCount = 0;
 
-	for ( f = mesh->fHead.next; f != &mesh->fHead; f = f->next )
+	for (TESSface* f = mesh->fHead.next; f != &mesh->fHead; f = f->next )
 	{
 		if ( !f->inside ) continue;
 
@@ -875,9 +870,7 @@ void tessAddContour( TESStesselator *tess, int size, const void* vertices,
 					int stride, int numVertices )
 {
 	const unsigned char *src = (const unsigned char*)vertices;
-	TESShalfEdge *e;
-	int i;
-
+	
 	if ( tess->mesh == NULL )
 	  	tess->mesh = tessMeshNewMesh( &tess->alloc );
 
@@ -886,9 +879,10 @@ void tessAddContour( TESStesselator *tess, int size, const void* vertices,
 	if ( size > 3 )
 		size = 3;
 
-	e = NULL;
+	TESShalfEdge* e = NULL;
+	const int winding = tess->reverseContours ? -1 : 1;
 
-	for( i = 0; i < numVertices; ++i )
+	for(int i = 0; i < numVertices; ++i )
 	{
 		const TESSreal* coords = (const TESSreal*)src;
 		src += stride;
@@ -923,8 +917,8 @@ void tessAddContour( TESStesselator *tess, int size, const void* vertices,
 		* vertices in such an order that a CCW contour will add +1 to
 		* the winding number of the region inside the contour.
 		*/
-        e->winding = tess->reverseContours ? -1 : 1;
-        e->Sym->winding = tess->reverseContours ? 1 : -1;
+        e->winding = winding;
+		e->Sym->winding = -winding;
 	}
 }
 
