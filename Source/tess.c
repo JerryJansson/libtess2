@@ -152,17 +152,15 @@ static void ComputeNormal( TESStesselator *tess, TESSreal norm[3] )
 
 static void CheckOrientation( TESStesselator *tess )
 {
-	TESSreal area;
 	TESSface *f, *fHead = &tess->mesh->fHead;
 	TESSvertex *v, *vHead = &tess->mesh->vHead;
-	TESShalfEdge *e;
 
 	/* When we compute the normal automatically, we choose the orientation
 	* so that the the sum of the signed areas of all contours is non-negative.
 	*/
-	area = 0;
+	TESSreal area = 0;
 	for( f = fHead->next; f != fHead; f = f->next ) {
-		e = f->anEdge;
+		TESShalfEdge* e = f->anEdge;
 		if( e->winding <= 0 ) continue;
 		do {
 			area += (e->Org->s - e->Dst->s) * (e->Org->t + e->Dst->t);
@@ -209,10 +207,9 @@ extern int RandomSweep;
 */
 void tessProjectPolygon( TESStesselator *tess )
 {
-	TESSvertex *v, *vHead = &tess->mesh->vHead;
+	TESSvertex *vHead = &tess->mesh->vHead;
 	TESSreal norm[3];
-	TESSreal *sUnit, *tUnit;
-	int i, first, computedNormal = FALSE;
+	int computedNormal = FALSE;
 
 	norm[0] = tess->normal[0];
 	norm[1] = tess->normal[1];
@@ -221,9 +218,10 @@ void tessProjectPolygon( TESStesselator *tess )
 		ComputeNormal( tess, norm );
 		computedNormal = TRUE;
 	}
-	sUnit = tess->sUnit;
-	tUnit = tess->tUnit;
-	i = LongAxis( norm );
+
+	TESSreal* sUnit = tess->sUnit;
+	TESSreal* tUnit = tess->tUnit;
+	const int i = LongAxis( norm );
 
 #if defined(FOR_TRITE_TEST_PROGRAM) || defined(TRUE_PROJECT)
 	/* Choose the initial sUnit vector to be approximately perpendicular
@@ -259,7 +257,7 @@ void tessProjectPolygon( TESStesselator *tess )
 #endif
 
 	/* Project the vertices onto the sweep plane */
-	for( v = vHead->next; v != vHead; v = v->next )
+	for(TESSvertex* v = vHead->next; v != vHead; v = v->next )
 	{
 		v->s = Dot( v->coords, sUnit );
 		v->t = Dot( v->coords, tUnit );
@@ -269,8 +267,8 @@ void tessProjectPolygon( TESStesselator *tess )
 	}
 
 	/* Compute ST bounds. */
-	first = 1;
-	for( v = vHead->next; v != vHead; v = v->next )
+	int first = 1;
+	for(TESSvertex* v = vHead->next; v != vHead; v = v->next )
 	{
 		if (first)
 		{
@@ -318,7 +316,7 @@ void tessProjectPolygon( TESStesselator *tess )
 * to the fan is a simple orientation test.  By making the fan as large
 * as possible, we restore the invariant (check it yourself).
 */
-int tessMeshTessellateMonoRegion( TESSmesh *mesh, TESSface *face )
+void tessMeshTessellateMonoRegion( TESSmesh *mesh, TESSface *face )
 {
 	TESShalfEdge *up, *lo;
 
@@ -345,7 +343,6 @@ int tessMeshTessellateMonoRegion( TESSmesh *mesh, TESSface *face )
 			while( lo->Lnext != up && (EdgeGoesLeft( lo->Lnext )
 				|| EdgeSign( lo->Org, lo->Dst, lo->Lnext->Dst ) <= 0 )) {
 					TESShalfEdge *tempHalfEdge= tessMeshConnect( mesh, lo->Lnext, lo );
-					if (tempHalfEdge == NULL) return 0;
 					lo = tempHalfEdge->Sym;
 			}
 			lo = lo->Lprev;
@@ -354,7 +351,6 @@ int tessMeshTessellateMonoRegion( TESSmesh *mesh, TESSface *face )
 			while( lo->Lnext != up && (EdgeGoesRight( up->Lprev )
 				|| EdgeSign( up->Dst, up->Org, up->Lprev->Org ) >= 0 )) {
 					TESShalfEdge *tempHalfEdge= tessMeshConnect( mesh, up, up->Lprev );
-					if (tempHalfEdge == NULL) return 0;
 					up = tempHalfEdge->Sym;
 			}
 			up = up->Lnext;
@@ -367,18 +363,15 @@ int tessMeshTessellateMonoRegion( TESSmesh *mesh, TESSface *face )
 	assert( lo->Lnext != up );
 	while( lo->Lnext->Lnext != up ) {
 		TESShalfEdge *tempHalfEdge= tessMeshConnect( mesh, lo->Lnext, lo );
-		if (tempHalfEdge == NULL) return 0;
 		lo = tempHalfEdge->Sym;
 	}
-
-	return 1;
 }
 
 /* tessMeshTessellateInterior( mesh ) tessellates each region of
 * the mesh which is marked "inside" the polygon.  Each such region
 * must be monotone.
 */
-int tessMeshTessellateInterior( TESSmesh *mesh )
+void tessMeshTessellateInterior( TESSmesh *mesh )
 {
 	TESSface *f, *next;
 
@@ -386,11 +379,11 @@ int tessMeshTessellateInterior( TESSmesh *mesh )
 	for( f = mesh->fHead.next; f != &mesh->fHead; f = next ) {
 		/* Make sure we don''t try to tessellate the new triangles. */
 		next = f->next;
-		if( f->inside ) {
-			if ( !tessMeshTessellateMonoRegion( mesh, f ) ) return 0;
+		if( f->inside ) 
+		{
+			tessMeshTessellateMonoRegion( mesh, f );
 		}
 	}
-	return 1;
 }
 
 
@@ -427,7 +420,6 @@ int stackEmpty( EdgeStack *stack )
 void stackPush( EdgeStack *stack, TESShalfEdge *e )
 {
 	EdgeStackNode *node = (EdgeStackNode *)bucketAlloc( stack->nodeBucket );
-	if ( ! node ) return;
 	node->edge = e;
 	node->next = stack->top;
 	stack->top = node;
@@ -536,7 +528,7 @@ void tessMeshDiscardExterior( TESSmesh *mesh )
 * If keepOnlyBoundary is TRUE, it also deletes all edges which do not
 * separate an interior region from an exterior one.
 */
-int tessMeshSetWindingNumber( TESSmesh *mesh, int value,
+void tessMeshSetWindingNumber( TESSmesh *mesh, int value,
 							 int keepOnlyBoundary )
 {
 	TESShalfEdge *e, *eNext;
@@ -553,11 +545,10 @@ int tessMeshSetWindingNumber( TESSmesh *mesh, int value,
 			if( ! keepOnlyBoundary ) {
 				e->winding = 0;
 			} else {
-				if ( !tessMeshDelete( mesh, e ) ) return 0;
+				tessMeshDelete(mesh, e);
 			}
 		}
 	}
-	return 1;
 }
 
 void* heapAlloc( void* userData, unsigned int size )
@@ -935,12 +926,15 @@ void tessSetOption( TESStesselator *tess, int option, int value )
 	}
 }
 
-
+//#include <windows.h>
 int tessTesselate( TESStesselator *tess, int windingRule, int elementType,
 				  int polySize, int vertexSize, const TESSreal* normal )
 {
+	//LARGE_INTEGER tt[7];
+	//QueryPerformanceCounter(&tt[0]);
+	
+
 	TESSmesh *mesh;
-	int rc = 1;
 
 	if (tess->vertices != NULL) {
 		tess->alloc.memfree( tess->alloc.userData, tess->vertices );
@@ -986,6 +980,8 @@ int tessTesselate( TESStesselator *tess, int windingRule, int elementType,
 	*/
 	tessProjectPolygon( tess );
 
+	//QueryPerformanceCounter(&tt[1]);
+
 	/* tessComputeInterior( tess ) computes the planar arrangement specified
 	* by the given contours, and further subdivides this arrangement
 	* into regions.  Each region is marked "inside" if it belongs
@@ -998,20 +994,28 @@ int tessTesselate( TESStesselator *tess, int windingRule, int elementType,
 
 	mesh = tess->mesh;
 
+	//QueryPerformanceCounter(&tt[2]);
+
 	/* If the user wants only the boundary contours, we throw away all edges
 	* except those which separate the interior from the exterior.
 	* Otherwise we tessellate all the regions marked "inside".
 	*/
-	if (elementType == TESS_BOUNDARY_CONTOURS) {
-		rc = tessMeshSetWindingNumber( mesh, 1, TRUE );
-	} else {
-		rc = tessMeshTessellateInterior( mesh );
-		if (rc != 0 && tess->processCDT != 0)
+	if (elementType == TESS_BOUNDARY_CONTOURS)
+	{
+		tessMeshSetWindingNumber( mesh, 1, TRUE );
+	} 
+	else 
+	{
+		tessMeshTessellateInterior( mesh );
+		if (tess->processCDT != 0)
 			tessMeshRefineDelaunay( mesh, &tess->alloc );
 	}
-	if (rc == 0) longjmp(tess->env,1);  /* could've used a label */
+	
+	//QueryPerformanceCounter(&tt[3]);
 
 	tessMeshCheckMesh( mesh );
+
+	//QueryPerformanceCounter(&tt[4]);
 
 	if (elementType == TESS_BOUNDARY_CONTOURS) {
 		OutputContours( tess, mesh, vertexSize );     /* output contours */
@@ -1021,8 +1025,25 @@ int tessTesselate( TESStesselator *tess, int windingRule, int elementType,
 		OutputPolymesh( tess, mesh, elementType, polySize, vertexSize );     /* output polygons */
 	}
 
+	//QueryPerformanceCounter(&tt[5]);
+
 	tessMeshDeleteMesh( &tess->alloc, mesh );
 	tess->mesh = NULL;
+
+
+	//QueryPerformanceCounter(&tt[6]);
+
+	/*LARGE_INTEGER b;
+	QueryPerformanceFrequency(&b);
+
+	double aa[6];
+	for (int i = 0; i < 6; i++)
+	{
+		aa[i] = ((double)(tt[i+1].QuadPart - tt[i].QuadPart)*1000) / b.QuadPart;
+	}
+	
+	int abba = 10;*/
+
 
 	return 1;
 }

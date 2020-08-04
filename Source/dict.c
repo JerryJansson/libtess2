@@ -38,11 +38,8 @@
 Dict *dictNewDict( TESSalloc* alloc, void *frame, int (*leq)(void *frame, DictKey key1, DictKey key2) )
 {
 	Dict *dict = (Dict *)alloc->memalloc( alloc->userData, sizeof( Dict ));
-	DictNode *head;
-
-	if (dict == NULL) return NULL;
-
-	head = &dict->head;
+	
+	DictNode *head = &dict->head;
 
 	head->key = NULL;
 	head->next = head;
@@ -77,7 +74,6 @@ DictNode *dictInsertBefore( Dict *dict, DictNode *node, DictKey key )
 	} while( node->key != NULL && ! (*dict->leq)(dict->frame, node->key, key));
 
 	newNode = (DictNode *)bucketAlloc( dict->nodePool );
-	if (newNode == NULL) return NULL;
 
 	newNode->key = key;
 	newNode->next = node->next;
