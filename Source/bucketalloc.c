@@ -56,25 +56,18 @@ struct BucketAlloc
 
 static void CreateBucket( struct BucketAlloc* ba )
 {
-	Bucket* bucket;
-	void* freelist;
-	unsigned char* head;
-	unsigned char* it;
-
 	// Allocate memory for the bucket
-	int size = sizeof(Bucket) + ba->itemSize * ba->bucketSize;
-	bucket = (Bucket*)ba->alloc->memalloc( ba->alloc->userData, size );
+	const int size = sizeof(Bucket) + ba->itemSize * ba->bucketSize;
+	Bucket* bucket = (Bucket*)ba->alloc->memalloc( ba->alloc->userData, size );
 
-	assert(bucket);
-	
 	// Add the bucket into the list of buckets.
 	bucket->next = ba->buckets;
 	ba->buckets = bucket;
 
 	// Add new items to the free list.
-	freelist = ba->freelist;
-	head = (unsigned char*)bucket + sizeof(Bucket);
-	it = head + ba->itemSize * ba->bucketSize;
+	void* freelist = ba->freelist;
+	unsigned char* head = (unsigned char*)bucket + sizeof(Bucket);
+	unsigned char* it = head + ba->itemSize * ba->bucketSize;
 	do
 	{
 		it -= ba->itemSize;
@@ -100,12 +93,10 @@ struct BucketAlloc* createBucketAlloc( TESSalloc* alloc, const char* name,
 
 	ba->alloc = alloc;
 	ba->name = name;
-	ba->itemSize = itemSize;
-	if ( ba->itemSize < sizeof(void*) )
-		ba->itemSize = sizeof(void*);
+	ba->itemSize = itemSize >= sizeof(void*) ? itemSize : sizeof(void*);
 	ba->bucketSize = bucketSize;
-	ba->freelist = 0;
-	ba->buckets = 0;
+	ba->freelist = NULL;
+	ba->buckets = NULL;
 
 	CreateBucket(ba);
 	

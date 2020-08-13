@@ -79,104 +79,7 @@ static int ShortAxis( TESSreal v[3] )
 	return i;
 }
 
-static void ComputeNormal( TESStesselator *tess, TESSreal norm[3] )
-{
-	TESSvertex *v, *v1, *v2;
-	TESSreal c, tLen2, maxLen2;
-	TESSreal maxVal[3], minVal[3], d1[3], d2[3], tNorm[3];
-	TESSvertex *maxVert[3], *minVert[3];
-	TESSvertex *vHead = &tess->mesh->vHead;
-	int i;
-
-	v = vHead->next;
-	for( i = 0; i < 3; ++i ) {
-		c = v->coords[i];
-		minVal[i] = c;
-		minVert[i] = v;
-		maxVal[i] = c;
-		maxVert[i] = v;
-	}
-
-	for( v = vHead->next; v != vHead; v = v->next ) {
-		for( i = 0; i < 3; ++i ) {
-			c = v->coords[i];
-			if( c < minVal[i] ) { minVal[i] = c; minVert[i] = v; }
-			if( c > maxVal[i] ) { maxVal[i] = c; maxVert[i] = v; }
-		}
-	}
-
-	/* Find two vertices separated by at least 1/sqrt(3) of the maximum
-	* distance between any two vertices
-	*/
-	i = 0;
-	if( maxVal[1] - minVal[1] > maxVal[0] - minVal[0] ) { i = 1; }
-	if( maxVal[2] - minVal[2] > maxVal[i] - minVal[i] ) { i = 2; }
-	if( minVal[i] >= maxVal[i] ) {
-		/* All vertices are the same -- normal doesn't matter */
-		norm[0] = 0; norm[1] = 0; norm[2] = 1;
-		return;
-	}
-
-	/* Look for a third vertex which forms the triangle with maximum area
-	* (Length of normal == twice the triangle area)
-	*/
-	maxLen2 = 0;
-	v1 = minVert[i];
-	v2 = maxVert[i];
-	d1[0] = v1->coords[0] - v2->coords[0];
-	d1[1] = v1->coords[1] - v2->coords[1];
-	d1[2] = v1->coords[2] - v2->coords[2];
-	for( v = vHead->next; v != vHead; v = v->next ) {
-		d2[0] = v->coords[0] - v2->coords[0];
-		d2[1] = v->coords[1] - v2->coords[1];
-		d2[2] = v->coords[2] - v2->coords[2];
-		tNorm[0] = d1[1]*d2[2] - d1[2]*d2[1];
-		tNorm[1] = d1[2]*d2[0] - d1[0]*d2[2];
-		tNorm[2] = d1[0]*d2[1] - d1[1]*d2[0];
-		tLen2 = tNorm[0]*tNorm[0] + tNorm[1]*tNorm[1] + tNorm[2]*tNorm[2];
-		if( tLen2 > maxLen2 ) {
-			maxLen2 = tLen2;
-			norm[0] = tNorm[0];
-			norm[1] = tNorm[1];
-			norm[2] = tNorm[2];
-		}
-	}
-
-	if( maxLen2 <= 0 ) {
-		/* All points lie on a single line -- any decent normal will do */
-		norm[0] = norm[1] = norm[2] = 0;
-		norm[ShortAxis(d1)] = 1;
-	}
-}
-
-
-static void CheckOrientation( TESStesselator *tess )
-{
-	TESSface *f, *fHead = &tess->mesh->fHead;
-	TESSvertex *v, *vHead = &tess->mesh->vHead;
-
-	/* When we compute the normal automatically, we choose the orientation
-	* so that the the sum of the signed areas of all contours is non-negative.
-	*/
-	TESSreal area = 0;
-	for( f = fHead->next; f != fHead; f = f->next ) {
-		TESShalfEdge* e = f->anEdge;
-		if( e->winding <= 0 ) continue;
-		do {
-			area += (e->Org->s - e->Dst->s) * (e->Org->t + e->Dst->t);
-			e = e->Lnext;
-		} while( e != f->anEdge );
-	}
-	if( area < 0 ) {
-		/* Reverse the orientation by flipping all the t-coordinates */
-		for( v = vHead->next; v != vHead; v = v->next ) {
-			v->t = - v->t;
-		}
-		tess->tUnit[0] = - tess->tUnit[0];
-		tess->tUnit[1] = - tess->tUnit[1];
-		tess->tUnit[2] = - tess->tUnit[2];
-	}
-}
+#if 0
 
 #ifdef FOR_TRITE_TEST_PROGRAM
 #include <stdlib.h>
@@ -283,6 +186,30 @@ void tessProjectPolygon( TESStesselator *tess )
 			if (v->t < tess->bmin[1]) tess->bmin[1] = v->t;
 			if (v->t > tess->bmax[1]) tess->bmax[1] = v->t;
 		}
+	}
+}
+
+#endif
+
+void jerryPrepareVertices(TESStesselator* tess)
+{
+	TESSvertex* vHead = &tess->mesh->vHead;
+	
+	const float flip = tess->normal[2] > 0 ? 1.0f : -1.0f;
+	
+	// Compute ST bounds.
+	tess->bmin[0] = 1e30f;
+	tess->bmax[0] = -1e30f;
+	tess->bmin[1] = 1e30f;
+	tess->bmax[1] = -1e30f;
+	for (TESSvertex* v = vHead->next; v != vHead; v = v->next)
+	{
+		v->t = flip * v->t; // Flip for SimView
+
+		if (v->s < tess->bmin[0]) tess->bmin[0] = v->s;
+		if (v->s > tess->bmax[0]) tess->bmax[0] = v->s;
+		if (v->t < tess->bmin[1]) tess->bmin[1] = v->t;
+		if (v->t > tess->bmax[1]) tess->bmax[1] = v->t;
 	}
 }
 
@@ -637,10 +564,10 @@ TESStesselator* tessNewTess( TESSalloc* alloc )
 
 	tess->vertexIndexCounter = 0;
 
-	tess->vertices = 0;
-	tess->vertexIndices = 0;
+	tess->vertices = NULL;
+	tess->vertexIndices = NULL;
 	tess->vertexCount = 0;
-	tess->elements = 0;
+	tess->elements = NULL;
 	tess->elementCount = 0;
 
 	return tess;
@@ -659,15 +586,15 @@ void tessDeleteTess( TESStesselator *tess )
 	}
 	if (tess->vertices != NULL) {
 		alloc.memfree( alloc.userData, tess->vertices );
-		tess->vertices = 0;
+		tess->vertices = NULL;
 	}
 	if (tess->vertexIndices != NULL) {
 		alloc.memfree( alloc.userData, tess->vertexIndices );
-		tess->vertexIndices = 0;
+		tess->vertexIndices = NULL;
 	}
 	if (tess->elements != NULL) {
 		alloc.memfree( alloc.userData, tess->elements );
-		tess->elements = 0;
+		tess->elements = NULL;
 	}
 
 	alloc.memfree( alloc.userData, tess );
@@ -743,22 +670,31 @@ void OutputPolymesh( TESStesselator *tess, TESSmesh *mesh, int elementType, int 
 	
 	tess->vertexIndices = (TESSindex*)tess->alloc.memalloc( tess->alloc.userData, sizeof(TESSindex) * tess->vertexCount );
 	
+	const float flip = tess->normal[2] > 0 ? 1.0f : -1.0f;
 	// Output vertices.
-	for ( v = mesh->vHead.next; v != &mesh->vHead; v = v->next )
+	for (v = mesh->vHead.next; v != &mesh->vHead; v = v->next)
 	{
-		if ( v->n != TESS_UNDEF )
+		if (v->n != TESS_UNDEF)
 		{
 			// Store coordinate
-			vert = &tess->vertices[v->n*vertexSize];
-			vert[0] = v->coords[0];
-			vert[1] = v->coords[1];
-			if ( vertexSize > 2 )
-				vert[2] = v->coords[2];
+			vert = &tess->vertices[v->n * vertexSize];
+			vert[0] = v->s;
+			vert[1] = flip * v->t;
+
+			if (flip < 0)
+			{
+				assert(vert[1] == -v->t);
+			}
+			else
+			{
+				assert(vert[1] == v->t);
+			}
+
 			// Store vertex index.
 			tess->vertexIndices[v->n] = v->idx;
 		}
 	}
-
+	
 	// Output indices.
 	elements = tess->elements;
 	for ( f = mesh->fHead.next; f != &mesh->fHead; f = f->next )
@@ -831,6 +767,8 @@ void OutputContours( TESStesselator *tess, TESSmesh *mesh, int vertexSize )
 	int startVert = 0;
 	int vertCount = 0;
 
+	const float flip = tess->normal[2] > 0 ? 1.0f : -1.0f;
+
 	for (TESSface* f = mesh->fHead.next; f != &mesh->fHead; f = f->next )
 	{
 		if ( !f->inside ) continue;
@@ -839,10 +777,8 @@ void OutputContours( TESStesselator *tess, TESSmesh *mesh, int vertexSize )
 		start = edge = f->anEdge;
 		do
 		{
-			*verts++ = edge->Org->coords[0];
-			*verts++ = edge->Org->coords[1];
-			if ( vertexSize > 2 )
-				*verts++ = edge->Org->coords[2];
+			*verts++ = edge->Org->s;
+			*verts++ = flip * edge->Org->t;
 			*vertInds++ = edge->Org->idx;
 			++vertCount;
 			edge = edge->Lnext;
@@ -865,14 +801,13 @@ void tessAddContour( TESStesselator *tess, int size, const void* vertices,
 	if ( tess->mesh == NULL )
 	  	tess->mesh = tessMeshNewMesh( &tess->alloc );
 
-	if ( size < 2 )
-		size = 2;
-	if ( size > 3 )
-		size = 3;
+	if ( size < 2 )	size = 2;
+	if ( size > 3 )	size = 3;
 
-	TESShalfEdge* e = NULL;
 	const int winding = tess->reverseContours ? -1 : 1;
-
+	
+	TESShalfEdge* e = NULL;
+	
 	for(int i = 0; i < numVertices; ++i )
 	{
 		const TESSreal* coords = (const TESSreal*)src;
@@ -894,12 +829,9 @@ void tessAddContour( TESStesselator *tess, int size, const void* vertices,
 		}
 
 		/* The new vertex is now e->Org. */
-		e->Org->coords[0] = coords[0];
-		e->Org->coords[1] = coords[1];
-		if ( size > 2 )
-			e->Org->coords[2] = coords[2];
-		else
-			e->Org->coords[2] = 0;
+		e->Org->s = coords[0];
+		e->Org->t = coords[1];
+		
 		/* Store the insertion number so that the vertex can be later recognized. */
 		e->Org->idx = tess->vertexIndexCounter++;
 
@@ -978,7 +910,8 @@ int tessTesselate( TESStesselator *tess, int windingRule, int elementType,
 	/* Determine the polygon normal and project vertices onto the plane
 	* of the polygon.
 	*/
-	tessProjectPolygon( tess );
+	//tessProjectPolygon( tess );
+	jerryPrepareVertices(tess);
 
 	//QueryPerformanceCounter(&tt[1]);
 

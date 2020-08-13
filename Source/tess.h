@@ -43,7 +43,7 @@
 extern "C" {
 #endif
 
-//typedef struct TESStesselator TESStesselator;
+// struct TESStesselator ~ 464b
 
 struct TESStesselator {
 
@@ -54,8 +54,8 @@ struct TESStesselator {
 	/*** state needed for projecting onto the sweep plane ***/
 
 	TESSreal normal[3];	/* user-specified normal (if provided) */
-	TESSreal sUnit[3];	/* unit vector in s-direction (debugging) */
-	TESSreal tUnit[3];	/* unit vector in t-direction (debugging) */
+	//TESSreal sUnit[3];	/* unit vector in s-direction (debugging) */
+	//TESSreal tUnit[3];	/* unit vector in t-direction (debugging) */
 
 	TESSreal bmin[2];
 	TESSreal bmax[2];

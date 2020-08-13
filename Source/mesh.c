@@ -52,13 +52,11 @@ typedef struct { TESShalfEdge e, eSym; } EdgePair;
 */
 static TESShalfEdge *MakeEdge( TESSmesh* mesh, TESShalfEdge *eNext )
 {
-	TESShalfEdge *e;
-	TESShalfEdge *eSym;
 	TESShalfEdge *ePrev;
 	EdgePair *pair = (EdgePair *)bucketAlloc( mesh->edgeBucket );
 
-	e = &pair->e;
-	eSym = &pair->eSym;
+	TESShalfEdge* e    = &pair->e;
+	TESShalfEdge* eSym = &pair->eSym;
 
 	/* Make sure eNext points to the first edge of the edge pair */
 	if( eNext->Sym < eNext ) { eNext = eNext->Sym; }
@@ -552,10 +550,6 @@ void tessMeshZapFace( TESSmesh *mesh, TESSface *fZap )
 */
 TESSmesh *tessMeshNewMesh( TESSalloc* alloc )
 {
-	TESSvertex *v;
-	TESSface *f;
-	TESShalfEdge *e;
-	TESShalfEdge *eSym;
 	TESSmesh *mesh = (TESSmesh *)alloc->memalloc( alloc->userData, sizeof( TESSmesh ));
 	if (mesh == NULL) {
 		return NULL;
@@ -580,10 +574,10 @@ TESSmesh *tessMeshNewMesh( TESSalloc* alloc )
 	mesh->vertexBucket = createBucketAlloc( alloc, "Mesh Vertices", sizeof(TESSvertex), alloc->meshVertexBucketSize );
 	mesh->faceBucket = createBucketAlloc( alloc, "Mesh Faces", sizeof(TESSface), alloc->meshFaceBucketSize );
 
-	v = &mesh->vHead;
-	f = &mesh->fHead;
-	e = &mesh->eHead;
-	eSym = &mesh->eHeadSym;
+	TESSvertex* v = &mesh->vHead;
+	TESSface* f = &mesh->fHead;
+	TESShalfEdge* e = &mesh->eHead;
+	TESShalfEdge* eSym = &mesh->eHeadSym;
 
 	v->next = v->prev = v;
 	v->anEdge = NULL;
